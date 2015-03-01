@@ -22,9 +22,11 @@
 
 
 import flask
-from flask import Flask, request
+from flask import Flask, request, render_template, make_response, redirect, url_for
 import json
-app = Flask(__name__)
+import time
+
+app = Flask(__name__, template_folder='static')
 app.debug = True
 
 # An example world
@@ -36,11 +38,13 @@ app.debug = True
 class World:
     def __init__(self):
         self.clear()
+        self.timestamp = time.time()
         
     def update(self, entity, key, value):
         entry = self.space.get(entity,dict())
         entry[key] = value
         self.space[entity] = entry
+        self.timestamp = time.time()
 
     def set(self, entity, data):
         self.space[entity] = data
@@ -50,9 +54,12 @@ class World:
 
     def get(self, entity):
         return self.space.get(entity,dict())
-    
+
     def world(self):
         return self.space
+
+    def timeStamp(self):
+        return self.timestamp
 
 # you can test your webservice from the commandline
 # curl -v   -H "Content-Type: appication/json" -X PUT http://127.0.0.1:5000/entity/X -d '{"x":1,"y":1}' 
@@ -74,27 +81,39 @@ def flask_post_json():
 @app.route("/")
 def hello():
     '''Return something coherent here.. perhaps redirect to /static/index.html '''
-    return None
+    return render_template('index.html')
 
 @app.route("/entity/<entity>", methods=['POST','PUT'])
 def update(entity):
     '''update the entities via this interface'''
-    return None
+    d = json.loads(request.data)
+    for key in d:
+        myWorld.update(entity, key, d[key])
+    return request.data
 
 @app.route("/world", methods=['POST','GET'])    
 def world():
-    '''you should probably return the world here'''
-    return None
+    # if not accept json throw
+    if 'If-Modified-Since' in request.headers and float(request.headers['If-Modified-Since']) > myWorld.timeStamp():
+        #response = make_response("{}")
+        response = ""
+        code = 304
+    else:
+        response = make_response(json.dumps(myWorld.world()))
+        response.headers['Last-Modified'] = myWorld.timeStamp()
+        response.headers['Content-Type'] = "application/json"
+        code = 200
+
+    return response, code
 
 @app.route("/entity/<entity>")    
 def get_entity(entity):
-    '''This is the GET version of the entity interface, return a representation of the entity'''
-    return None
+    return json.dumps(myWorld.get(entity))
 
 @app.route("/clear", methods=['POST','GET'])
 def clear():
-    '''Clear the world out!'''
-    return None
+    myWorld.clear()
+    return ""
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0")

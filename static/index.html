@@ -20,7 +20,7 @@
         See the License for the specific language governing permissions and
         limitations under the License.
     "/>
-    <script src="json2.js"></script>
+    <script src="/static/json2.js"></script>
   </head> 
   <body bgcolor="black" height="100%" width="100%"> 
     <canvas id="c" width="100%" height="100%" style="-webkit-tap-highlight-color: transparent;"></canvas> 
@@ -30,16 +30,22 @@ var host = window.location.host;
 var context = canvas.getContext("2d");
 var W = canvas.width  = window.innerWidth-6;
 var H = canvas.height = window.innerHeight-50;
+var lastModified = "0.0";
 
-
-function sendJSONXMLHTTPRequest(url, objects, callback) {
+function sendJSONXMLHTTPRequest(method, url, objects, callback) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function () {
         if (xhr.readyState==4) {
             try {
-                if (xhr.status==200) {
+                if (xhr.status == 200) {
                     //XXX: parse some JSON from the request!
                     //XXX: Pass the data to the callback!
+                    if (xhr.getResponseHeader("Last-Modified") != null) {
+                        lastModified = xhr.getResponseHeader("last-modified");
+                    }
+                    if (callback != null) {
+                        callback(JSON.parse(xhr.responseText));
+                    }
                 }
             } 
             catch(e) {
@@ -50,6 +56,17 @@ function sendJSONXMLHTTPRequest(url, objects, callback) {
     //XXX: POST to a URL
     //XXX: set the mimetype and the accept headers!
     // Remember to use application/json !
+    xhr.open(method, url, true);
+    xhr.setRequestHeader("Accept", "application/json");
+
+    if (method === "POST" || method === "PUT") {
+        xhr.setRequestHeader("Content-Type","application/json");
+        xhr.send(JSON.stringify(objects));
+    }
+    else {
+        xhr.setRequestHeader("If-Modified-Since", lastModified);
+        xhr.send();
+    }
 }
 
 
@@ -138,7 +155,7 @@ function addEntity(entity, data) {
     world[entity] = data;
     drawNextFrame(); // (but should we?)
     //XXX: Send a XHTML Request that updates the entity you just  modified!
-
+    sendJSONXMLHTTPRequest("POST", "/entity/"+entity, data, null);
 }
 
 var counter = 0;
@@ -262,13 +279,14 @@ mouse.mousedraggers.push(function(x,y,clicked,e) {
 
 function update() {
     //XXX: TODO Get the world from the webservice using a XMLHTTPRequest
-    drawFrame();
+    sendJSONXMLHTTPRequest("GET", "/world", null, function(newWorld) {
+        world = newWorld;
+        renderFrame();
+    });
 }
 
 // 30 frames per second
 setInterval( update, 1000/30.0);
-
-
 
     </script>
 </body>
