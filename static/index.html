@@ -31,6 +31,7 @@ var context = canvas.getContext("2d");
 var W = canvas.width  = window.innerWidth-6;
 var H = canvas.height = window.innerHeight-50;
 var lastModified = "0.0";
+var grad = context.createRadialGradient(75,50,5,90,60,100);
 
 function sendJSONXMLHTTPRequest(method, url, objects, callback) {
     var xhr = new XMLHttpRequest();
@@ -80,9 +81,11 @@ function drawCircle(context,entity) {
         var x = entity["x"];
         var y = entity["y"];
         //moveTo(x,y);
-        fillStyle = entity["colour"];
+        fillStyle = '#'+Math.floor(Math.random()*16777215).toString(16);
         strokeStyle = fillStyle;
-        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
+        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false); 
+	//fillStyle = grad;
+	fill(); 
         stroke();                                
     }
 }
